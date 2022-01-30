@@ -213,6 +213,12 @@ let labelGenNumber (model: Model) (compType: ComponentType) (label : string) =
     | IOLabel -> label
     | _ -> filterString label + (getIndex listSymbols compType)
 
+
+//----------------------------TOP LEVEL FUNCTION-----------------------------//
+//        This function generates a new Issie default label (component name) //
+//        Names are a short prefic followed by a (consecutive from 0) number //
+//        e.g. G1, G2, G3. The prefic depends on the ComponentType.          //
+
 ///Generates the label for a component type
 let generateLabel (model: Model) (compType: ComponentType) : string =
     labelGenNumber model compType (prefix compType)
