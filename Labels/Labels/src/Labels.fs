@@ -59,8 +59,8 @@ type Model = {
 //----------------------------------------------DEFAULT NAME GENERATION---------------------------------------------------------//
 //------------------------------------------------------------------------------------------------------------------------------//
 
-///Decodes the component type into component labels
-let prefix compType = 
+///Generates a label prefix for a component type
+let generatePrefix compType = 
     match compType with
     | Not | And | Or | Xor | Nand | Nor | Xnor -> "G"
     | Mux2 -> "MUX"
@@ -74,29 +74,25 @@ let prefix compType =
     | RAM1 _ -> "RAM"
     | AsyncRAM1 _ -> "ARAM"
     | Custom c -> 
-        c.Name + (if c.Name |> Seq.last |> System.Char.IsDigit then "." else "")
+        c.Name.ToUpper() + (if c.Name |> Seq.last |> System.Char.IsDigit then "." else "")
     | Constant1 _ -> "C"
     | BusCompare _ -> "EQ"
     | Decode4 -> "DEC"
     | BusSelection _ -> "SEL"
     | _ -> ""
 
-/// Function to filter out non-letter characters by using ASCII values.
-/// Now only used to capitalise names.
-let filterString (string:string) = 
-    string.ToUpper()
-
 /// Returns the number of the component label (i.e. the number 1 from IN1)
-let regex (str : string) = 
+let getNumber (str : string) = 
     let index = Regex.Match(str, @"\d+$")
     match index with
     | null -> 0
     | _ -> int index.Value
 
-let getCompList compType listSymbols =
+/// Filters symbols for all that match a given compType
+let filterSymbols compType symbols =
     match compType with 
        | Not | And | Or | Xor | Nand | Nor | Xnor -> 
-            listSymbols
+            symbols
             |> List.filter (fun sym ->
                 (sym.Compo.Type = Not || sym.Compo.Type = And 
                 || sym.Compo.Type = Or || sym.Compo.Type = Xor
@@ -104,114 +100,108 @@ let getCompList compType listSymbols =
                 || sym.Compo.Type = Xnor)
                 )
        | DFF | DFFE -> 
-            listSymbols
+            symbols
             |> List.filter (fun sym ->
                 (sym.Compo.Type = DFF || sym.Compo.Type = DFFE))
        //The following components require this pattern matching in order to correctly identify all of the components in the circuit of that type
        //Normally this is because they are defined by a width as well as a type
        | Register _ | RegisterE _ ->
-            listSymbols
+            symbols
             |> List.filter (fun sym ->
                 match sym.Compo.Type with 
                 | Register _ | RegisterE _ -> true
                 | _ -> false)
        | Constant1 _ ->
-            listSymbols
+            symbols
             |> List.filter (fun sym ->
                 match sym.Compo.Type with 
                 | Constant1 _ -> true
                 | _ -> false)
        | Input _ ->
-           listSymbols
+           symbols
            |> List.filter (fun sym ->
                match sym.Compo.Type with 
                | Input _ -> true
                | _ -> false)
        | Output _ ->
-           listSymbols
+           symbols
            |> List.filter (fun sym ->
                match sym.Compo.Type with 
                | Output _ -> true
                | _ -> false)
        | Viewer _ ->
-           listSymbols
+           symbols
            |> List.filter (fun sym ->
                match sym.Compo.Type with 
                | Viewer _ -> true
                | _ -> false)
        | BusSelection _ ->
-           listSymbols
+           symbols
            |> List.filter (fun sym ->
                match sym.Compo.Type with 
                | BusSelection _ -> true
                | _ -> false)
        | BusCompare _ ->
-           listSymbols
+           symbols
            |> List.filter (fun sym ->
                match sym.Compo.Type with 
                | BusCompare _ -> true
                | _ -> false)
        | NbitsAdder _ ->
-           listSymbols
+           symbols
            |> List.filter (fun sym ->
                match sym.Compo.Type with 
                | NbitsAdder _ -> true
                | _ -> false)
        | NbitsXor _ ->
-           listSymbols
+           symbols
            |> List.filter (fun sym ->
                match sym.Compo.Type with 
                | NbitsXor _ -> true
                | _ -> false)
        | AsyncROM1 _ ->
-           listSymbols
+           symbols
            |> List.filter (fun sym ->
                match sym.Compo.Type with 
                | AsyncROM1 _ -> true
                | _ -> false)
        | ROM1 _ ->
-           listSymbols
+           symbols
            |> List.filter (fun sym ->
                match sym.Compo.Type with 
                | ROM1 _ -> true
                | _ -> false)
        | RAM1 _ ->
-           listSymbols
+           symbols
            |> List.filter (fun sym ->
                match sym.Compo.Type with 
                | RAM1 _ -> true
                | _ -> false)
        | AsyncRAM1 _ ->
-           listSymbols
+           symbols
            |> List.filter (fun sym ->
                match sym.Compo.Type with 
                | AsyncRAM1 _ -> true
-               | _ -> false)
+               | _ -> false) //sym -> sym.Compo.Type = AsyncRAM1
 
        | _ ->
-            listSymbols
+            symbols
             |> List.filter (fun sym -> sym.Compo.Type = compType)
 
-let getIndex listSymbols compType =
-    let symbolList = 
-        getCompList compType listSymbols
+/// Generates a label index to use as suffix
+let generateNumber symbols compType =
+    let filteredSymbols = 
+        filterSymbols compType symbols
 
     match compType with
     | MergeWires | SplitWire _ -> ""
     | _ ->
-        if List.isEmpty symbolList then 1 
+        if List.isEmpty filteredSymbols then 1 
         else symbolList
-            |> List.map (fun sym -> regex sym.Compo.Label)
+            |> List.map (fun sym -> getNumber sym.Compo.Label)
             |> List.max
             |> (+) 1
         |> string
-
-///Generates the number to be put in the title of symbols  
-let labelGenNumber (model: Model) (compType: ComponentType) (label : string) = 
-    let listSymbols = List.map snd (Map.toList model.Symbols) 
-    match compType with
-    | IOLabel -> label
-    | _ -> filterString label + (getIndex listSymbols compType)
 
 
 //----------------------------TOP LEVEL FUNCTION-----------------------------//
@@ -221,5 +211,11 @@ let labelGenNumber (model: Model) (compType: ComponentType) (label : string) =
 
 ///Generates the label for a component type
 let generateLabel (model: Model) (compType: ComponentType) : string =
-    labelGenNumber model compType (prefix compType)
+    let (prefix: string) = generatePrefix compType
+    let (number: string) =
+        let symbols = List.map snd (Map.toList model.Symbols)
+        generateNumber symbols compType
+    match compType with
+    | IOLabel -> prefix
+    | _ -> prefix + number
 

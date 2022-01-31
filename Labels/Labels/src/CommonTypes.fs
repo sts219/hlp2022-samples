@@ -252,7 +252,6 @@ type ComponentType =
     | AsyncROM of Memory | ROM of Memory | RAM of Memory // legacy components - to be deleted
     | AsyncROM1 of Memory1 | ROM1 of Memory1 | RAM1 of Memory1 | AsyncRAM1 of Memory1
 
-
 /// Active pattern which matches 2-input gate component types.
 /// NB - NOT gates are not included here.
 let (|IsBinaryGate|NotBinaryGate|) cType =
