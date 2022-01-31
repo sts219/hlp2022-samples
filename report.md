@@ -36,6 +36,7 @@ We were quite unhappy with the getCompList function (now called filterSymbols). 
 2. Get the number of each of the remaining symbols
 3. Return the maximum value of these + 1
 
+This could be updated to the following:
 1. Map each symbol in the list to either:
     - Its label number if it matches the compType
     - Else 0
